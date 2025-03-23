@@ -183,6 +183,16 @@ func InitialModel() Model {
 			EchoMode(huh.EchoModePassword),
 	)
 
+	telegramInput := huh.NewGroup(
+		huh.NewInput().
+			Key("BotToken").
+			Title("Your Telegram Bot ID").
+			EchoMode(huh.EchoModePassword),
+		huh.NewInput().
+			Key("ChatId").
+			Title("Your Telegram Chat ID").
+			Placeholder("-100"),
+	)
 	form := huh.NewForm(
 		huh.NewGroup(
 			projectNameInput,
@@ -191,6 +201,7 @@ func InitialModel() Model {
 			platformSelect,
 		),
 		vercelProjectInput,
+    telegramInput,
 	).WithShowHelp(true)
 
 	return Model{
