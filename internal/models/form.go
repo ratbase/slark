@@ -19,11 +19,8 @@ type Model struct {
 }
 
 type PlatformData struct {
-	ApiKey string
-	TeamId string
-}
-
-type TelegramData struct {
+	ApiKey   string
+	TeamId   string
 	BotToken string
 	ChatId   string
 }

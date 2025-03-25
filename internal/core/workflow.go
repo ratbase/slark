@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"slark/internal/models"
@@ -9,7 +10,7 @@ import (
 
 // GenerateWorkflows creates workflow files based on the project configuration
 // and platform-specific settings.
-func GenerateWorkflows(config models.ProjectConfig, platformData models.PlatformData, telegramData models.TelegramData) ([]string, error) {
+func GenerateWorkflows(config models.ProjectConfig, platformData models.PlatformData) ([]string, error) {
 	// List to store the paths of generated workflow files
 	var generatedFiles []string
 
@@ -34,8 +35,8 @@ func GenerateWorkflows(config models.ProjectConfig, platformData models.Platform
 	}
 
 	// Add notification workflows if enabled
-	if telegramData.BotToken != "" && telegramData.ChatId != "" {
-		files, err := generateNotificationWorkflow(config, telegramData)
+	if platformData.BotToken != "" && platformData.ChatId != "" {
+		files, err := generateNotificationWorkflow(config, platformData)
 		if err != nil {
 			return nil, err
 		}
@@ -52,50 +53,80 @@ func generateVercelWorkflow(config models.ProjectConfig, platformData models.Pla
 		return nil, fmt.Errorf("Vercel API key is required")
 	}
 
-	// Use team ID if provided
-	teamConfig := ""
-	if platformData.TeamId != "" {
-		teamConfig = fmt.Sprintf("--scope %s", platformData.TeamId)
-	}
-
 	// Create workflow content
 	// Marked as _ to avoid unused variable warning while keeping the code for reference
-	_ = fmt.Sprintf(`
-name: Deploy to Vercel
-
+	template := fmt.Sprintf(`
+  name: %s - GitHub Actions Vercel Deployment
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_IMURA_LANDING }}
 on:
   push:
     branches:
       - %s
-
+    paths:
+      - %s/**
+      - .github/workflows/%s.%s.yml
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  Deploy-Production:
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          
+          node-version: 22
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-        
-      - name: Deploy to Vercel
+        run: | 
+          npm install --global vercel@canary
+          # npm install --global yarn
+          npm install -g pnpm
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        id: build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        id: deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: "set result"
+        id: deploy-task-result
+        if: always()
         run: |
-          vercel --token ${{ secrets.VERCEL_TOKEN }} %s --prod
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-`, config.DeployBranch, teamConfig)
+          if ${{ steps.build.outcome == 'success' && (steps.deploy.outcome == 'success' || steps.deploy.outcome == null) }}; then # Check both build and deploy
+            echo "deploy_result=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy_result=failure" >> "$GITHUB_OUTPUT"
+          fi
+    outputs:
+      deploy_result: ${{ steps.deploy-task-result.outputs.deploy_result }}
+    `, config.Name, config.DeployBranch, config.BuildFolder, config.Name, config.DeployBranch)
+
+	//if telegram token is set append this to above string
+	if platformData.BotToken != "" && platformData.ChatId != "" {
+		template += fmt.Sprintf(`
+  noti-tele:
+    name: Notify Telegram
+    uses: "./.github/workflows/.telegram-noti.yml"
+    needs: Deploy-Production
+    if: |
+      always()
+    with:
+      main_job_name: Deploy-Production
+      results: Deploy ${{ needs.Deploy-Production.outputs.deploy_result }}
+      service_name: %s
+      `, config.Name)
+	}
 
 	// Define the workflow file path
-	workflowPath := ".github/workflows/vercel-deploy.yml"
+	workflowPath := fmt.Sprintf(`.github/workflows/%s.%s.yml`, config.Name, config.DeployBranch)
 
-	// TODO: In a real implementation, write this content to the file
-	// For now, just return the path that would be created
+	// Write the workflow content to the file
+	err := os.WriteFile(workflowPath, []byte(template), 0644)
+	if err != nil {
+		return nil, err
+	}
 
 	return []string{workflowPath}, nil
 }
@@ -148,7 +179,7 @@ jobs:
 }
 
 // generateNotificationWorkflow creates workflow files for notifications
-func generateNotificationWorkflow(config models.ProjectConfig, telegramData models.TelegramData) ([]string, error) {
+func generateNotificationWorkflow(config models.ProjectConfig, platformData models.PlatformData) ([]string, error) {
 	// Create workflow content for Telegram notifications
 	// Marked as _ to avoid unused variable warning while keeping the code for reference
 	_ = fmt.Sprintf(`
@@ -173,7 +204,7 @@ jobs:
             Project: %s
             Deployment ${{ github.event.workflow_run.conclusion }} 
             See details: ${{ github.event.workflow_run.html_url }}
-`, strings.Title(config.Platform), telegramData.ChatId, "${{ secrets.TELEGRAM_TOKEN }}", config.Name)
+`, strings.Title(config.Platform), platformData.ChatId, "${{ secrets.TELEGRAM_TOKEN }}", config.Name)
 
 	// Define the workflow file path
 	workflowPath := ".github/workflows/notification.yml"

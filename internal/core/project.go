@@ -20,15 +20,6 @@ func SetupProject(projectName, deployBranch, buildFolder, platform string) (mode
 		return models.ProjectConfig{}, err
 	}
 
-	// Set default values for optional fields
-	if deployBranch == "" {
-		deployBranch = "main"
-	}
-
-	if buildFolder == "" {
-		buildFolder = "./"
-	}
-
 	// Clean up build folder path
 	buildFolder = filepath.Clean(buildFolder)
 
@@ -64,7 +55,7 @@ func validateProjectInputs(projectName, platform string) error {
 
 // ProcessProject is the main function that processes project setup and returns a tea.Cmd
 // It's used by the TUI to handle the asynchronous project setup process
-func ProcessProject(projectName, deployBranch, buildFolder, platform string, platformData models.PlatformData, telegramData models.TelegramData) tea.Cmd {
+func ProcessProject(projectName, deployBranch, buildFolder, platform string, platformData models.PlatformData) tea.Cmd {
 	return func() tea.Msg {
 		// Initialize result builder
 		var resultBuilder strings.Builder
@@ -80,7 +71,7 @@ func ProcessProject(projectName, deployBranch, buildFolder, platform string, pla
 		}
 
 		// Generate workflows based on platform
-		workflowFiles, err := GenerateWorkflows(config, platformData, telegramData)
+		workflowFiles, err := GenerateWorkflows(config, platformData)
 		if err != nil {
 			return models.ProcessFinishedMsg{
 				Success: false,

@@ -2,12 +2,13 @@ package core
 
 import (
 	"fmt"
+	"slark/internal/models"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	"slark/internal/models"
-	"strings"
 )
 
 type Model struct {
@@ -70,13 +71,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				deployBranch := m.Form.GetString("deployBranch")
 				buildFolder := m.Form.GetString("buildFolder")
 				platform := m.Form.GetString("platform")
+
+				// Create a single platformData with all fields
 				platformData := models.PlatformData{
-					ApiKey: m.Form.GetString("vercelToken"),
-					TeamId: m.Form.GetString("vercelTeamName"),
-				}
-				telegramData := models.TelegramData{
+					ApiKey:   m.Form.GetString("vercelToken"),
+					TeamId:   m.Form.GetString("vercelTeamName"),
 					BotToken: m.Form.GetString("telegramToken"),
 					ChatId:   m.Form.GetString("telegramChatId"),
+				}
+
+				// Set default values if empty
+				if projectName == "" {
+					projectName = "slark"
 				}
 
 				if deployBranch == "" {
@@ -87,10 +93,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					buildFolder = "./"
 				}
 
+				if platform == "" {
+					platform = "vercel"
+				}
+
+				if platformData.TeamId == "" {
+					platformData.TeamId = "team_xxxx"
+				}
+
+				if platformData.ChatId == "" {
+					platformData.ChatId = "-100"
+				}
+
 				m.Stage = 1
 				return m, tea.Batch(
 					m.Spinner.Tick,
-					ProcessProject(projectName, deployBranch, buildFolder, platform, platformData, telegramData),
+					ProcessProject(projectName, deployBranch, buildFolder, platform, platformData),
 				)
 			}
 		}
@@ -156,7 +174,7 @@ func InitialModel() Model {
 	deployBranchInput := huh.NewInput().
 		Key("deployBranch").
 		Title("Deploy Branch").
-		Placeholder("dev")
+		Placeholder("main")
 
 	buildFolderInput := huh.NewInput().
 		Key("buildFolder").
@@ -185,11 +203,11 @@ func InitialModel() Model {
 
 	telegramInput := huh.NewGroup(
 		huh.NewInput().
-			Key("BotToken").
-			Title("Your Telegram Bot ID").
+			Key("telegramToken").
+			Title("Your Telegram Bot Token").
 			EchoMode(huh.EchoModePassword),
 		huh.NewInput().
-			Key("ChatId").
+			Key("telegramChatId").
 			Title("Your Telegram Chat ID").
 			Placeholder("-100"),
 	)
@@ -201,7 +219,7 @@ func InitialModel() Model {
 			platformSelect,
 		),
 		vercelProjectInput,
-    telegramInput,
+		telegramInput,
 	).WithShowHelp(true)
 
 	return Model{
