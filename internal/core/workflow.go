@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"slark/internal/models"
 )
@@ -56,7 +55,7 @@ func generateVercelWorkflow(config models.ProjectConfig, platformData models.Pla
 	// Create workflow content
 	// Marked as _ to avoid unused variable warning while keeping the code for reference
 	template := fmt.Sprintf(`
-  name: %s - GitHub Actions Vercel Deployment
+name: %s - GitHub Actions Vercel Deployment - branch %s
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_IMURA_LANDING }}
@@ -101,7 +100,7 @@ jobs:
           fi
     outputs:
       deploy_result: ${{ steps.deploy-task-result.outputs.deploy_result }}
-    `, config.Name, config.DeployBranch, config.BuildFolder, config.Name, config.DeployBranch)
+    `, config.Name, config.DeployBranch, config.DeployBranch, config.BuildFolder, config.Name, config.DeployBranch)
 
 	//if telegram token is set append this to above string
 	if platformData.BotToken != "" && platformData.ChatId != "" {
@@ -122,8 +121,13 @@ jobs:
 	// Define the workflow file path
 	workflowPath := fmt.Sprintf(`.github/workflows/%s.%s.yml`, config.Name, config.DeployBranch)
 
+	err := os.MkdirAll(".github/workflows", 0755)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create .github/workflows directory: %w", err)
+	}
+
 	// Write the workflow content to the file
-	err := os.WriteFile(workflowPath, []byte(template), 0644)
+	err = os.WriteFile(workflowPath, []byte(template), 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -180,37 +184,55 @@ jobs:
 
 // generateNotificationWorkflow creates workflow files for notifications
 func generateNotificationWorkflow(config models.ProjectConfig, platformData models.PlatformData) ([]string, error) {
-	// Create workflow content for Telegram notifications
-	// Marked as _ to avoid unused variable warning while keeping the code for reference
-	_ = fmt.Sprintf(`
-name: Deployment Notifications
-
-on:
-  workflow_run:
-    workflows: ["Deploy to %s"]
-    types:
-      - completed
-
+	// Create workflow content from notification template
+	template := `on:
+  workflow_call:
+    inputs:
+      main_job_name:
+        required: true
+        type: string
+      results:
+        required: true
+        type: string
+      service_name:
+        required: true
+        type: string
+      dev_id:
+        required: false
+        type: string
+        default: "U061KBS9HDK"
 jobs:
-  notify:
-    runs-on: ubuntu-latest
+  telegram_message:
+    runs-on: self-hosted
+    if: always()
     steps:
-      - name: Send Telegram notification
+      - name: send telegram message on push
         uses: appleboy/telegram-action@master
         with:
-          to: %s
-          token: %s
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            Project: %s
-            Deployment ${{ github.event.workflow_run.conclusion }} 
-            See details: ${{ github.event.workflow_run.html_url }}
-`, strings.Title(config.Platform), platformData.ChatId, "${{ secrets.TELEGRAM_TOKEN }}", config.Name)
+            ${{ github.actor }} created commit:
+            Commit message: ${{ github.event.commits[0].message }}
+            Repository: ${{ github.repository }}
+            Project: ${{ inputs.service_name }}
+            GitHub Action build result: ${{ inputs.results }}
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}`
 
 	// Define the workflow file path
-	workflowPath := ".github/workflows/notification.yml"
+	workflowPath := ".github/workflows/.telegram-noti.yml"
 
-	// TODO: In a real implementation, write this content to the file
-	// For now, just return the path that would be created
+	// Create the .github/workflows directory if it doesn't exist
+	err := os.MkdirAll(".github/workflows", 0755)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create .github/workflows directory: %w", err)
+	}
+
+	// Write the workflow content to the file
+	err = os.WriteFile(workflowPath, []byte(template), 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write notification workflow file: %w", err)
+	}
 
 	return []string{workflowPath}, nil
 }
