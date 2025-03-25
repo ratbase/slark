@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"slark/internal/models"
+	"slark/internal/platform"
 )
 
 // GenerateWorkflows creates workflow files based on the project configuration
@@ -35,7 +36,7 @@ func GenerateWorkflows(config models.ProjectConfig, platformData models.Platform
 
 	// Add notification workflows if enabled
 	if platformData.BotToken != "" && platformData.ChatId != "" {
-		files, err := generateNotificationWorkflow(config, platformData)
+		files, err := generateNotificationWorkflow()
 		if err != nil {
 			return nil, err
 		}
@@ -50,6 +51,11 @@ func generateVercelWorkflow(config models.ProjectConfig, platformData models.Pla
 	// Validate Vercel-specific requirements
 	if platformData.ApiKey == "" {
 		return nil, fmt.Errorf("Vercel API key is required")
+	}
+
+	err := platform.CreateVercelProject(config, platformData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Vercel project: %w", err)
 	}
 
 	// Create workflow content
@@ -121,7 +127,7 @@ jobs:
 	// Define the workflow file path
 	workflowPath := fmt.Sprintf(`.github/workflows/%s.%s.yml`, config.Name, config.DeployBranch)
 
-	err := os.MkdirAll(".github/workflows", 0755)
+	err = os.MkdirAll(".github/workflows", 0755)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}
@@ -183,7 +189,7 @@ jobs:
 }
 
 // generateNotificationWorkflow creates workflow files for notifications
-func generateNotificationWorkflow(config models.ProjectConfig, platformData models.PlatformData) ([]string, error) {
+func generateNotificationWorkflow() ([]string, error) {
 	// Create workflow content from notification template
 	template := `on:
   workflow_call:
