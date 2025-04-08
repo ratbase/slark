@@ -18,9 +18,7 @@ type Model struct {
 var (
 	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-	infoStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
