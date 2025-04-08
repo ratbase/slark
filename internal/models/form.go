@@ -23,6 +23,7 @@ type PlatformData struct {
 	TeamId   string
 	BotToken string
 	ChatId   string
+	Framework string // Framework option for Vercel projects
 }
 
 type ProcessFinishedMsg struct {

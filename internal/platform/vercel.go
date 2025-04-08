@@ -19,10 +19,10 @@ func CreateVercelProject(config models.ProjectConfig, platformData models.Platfo
 	}
 
 	// Set outputDirectory based on build folder
-	var outputDir interface{} = nil
-	if config.BuildFolder != "./" {
-		outputDir = config.BuildFolder
-	}
+	// var outputDir interface{} = nil
+	// if config.BuildFolder != "./" {
+	// 	outputDir = config.BuildFolder
+	// }
 
 	// Updated project data according to v11 API format from provided example
 	projectData := map[string]interface{}{
@@ -31,9 +31,9 @@ func CreateVercelProject(config models.ProjectConfig, platformData models.Platfo
 		"commandForIgnoringBuildStep":       nil,
 		"devCommand":                        nil,
 		"environmentVariables":              []map[string]interface{}{},
-		"framework":                         nil,
+		"framework":                         platformData.Framework,
 		"installCommand":                    nil,
-		"outputDirectory":                   outputDir,
+		"outputDirectory":                   nil,
 		"publicSource":                      nil,
 		"rootDirectory":                     nil,
 		"skipGitConnectDuringLink":          true, // Set to true to skip GitHub connection

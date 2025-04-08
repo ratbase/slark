@@ -74,10 +74,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				// Create a single platformData with all fields
 				platformData := models.PlatformData{
-					ApiKey:   m.Form.GetString("vercelToken"),
-					TeamId:   m.Form.GetString("vercelTeamName"),
-					BotToken: m.Form.GetString("telegramToken"),
-					ChatId:   m.Form.GetString("telegramChatId"),
+					ApiKey:    m.Form.GetString("vercelToken"),
+					TeamId:    m.Form.GetString("vercelTeamName"),
+					BotToken:  m.Form.GetString("telegramToken"),
+					ChatId:    m.Form.GetString("telegramChatId"),
+					Framework: m.Form.GetString("framework"),
 				}
 
 				// Set default values if empty
@@ -199,8 +200,61 @@ func InitialModel() Model {
 			Key("vercelToken").
 			Title("Your Vercel API Token").
 			EchoMode(huh.EchoModePassword),
+		huh.NewSelect[string]().
+			Key("framework").
+			Title("Framework").
+			Filtering(true).
+			Height(5).
+			Options(
+				huh.NewOption("No Framework", ""),
+				huh.NewOption("Blitz.js", "blitzjs"),
+				huh.NewOption("Next.js", "nextjs"),
+				huh.NewOption("Gatsby", "gatsby"),
+				huh.NewOption("Remix", "remix"),
+				huh.NewOption("React Router", "react-router"),
+				huh.NewOption("Astro", "astro"),
+				huh.NewOption("Hexo", "hexo"),
+				huh.NewOption("Eleventy", "eleventy"),
+				huh.NewOption("Docusaurus 2", "docusaurus-2"),
+				huh.NewOption("Docusaurus", "docusaurus"),
+				huh.NewOption("Preact", "preact"),
+				huh.NewOption("SolidStart 1", "solidstart-1"),
+				huh.NewOption("SolidStart", "solidstart"),
+				huh.NewOption("Dojo", "dojo"),
+				huh.NewOption("Ember", "ember"),
+				huh.NewOption("Vue", "vue"),
+				huh.NewOption("Scully", "scully"),
+				huh.NewOption("Ionic Angular", "ionic-angular"),
+				huh.NewOption("Angular", "angular"),
+				huh.NewOption("Polymer", "polymer"),
+				huh.NewOption("Svelte", "svelte"),
+				huh.NewOption("SvelteKit", "sveltekit"),
+				huh.NewOption("SvelteKit 1", "sveltekit-1"),
+				huh.NewOption("Ionic React", "ionic-react"),
+				huh.NewOption("Create React App", "create-react-app"),
+				huh.NewOption("Gridsome", "gridsome"),
+				huh.NewOption("UmiJS", "umijs"),
+				huh.NewOption("Sapper", "sapper"),
+				huh.NewOption("Saber", "saber"),
+				huh.NewOption("Stencil", "stencil"),
+				huh.NewOption("Nuxt.js", "nuxtjs"),
+				huh.NewOption("RedwoodJS", "redwoodjs"),
+				huh.NewOption("Hugo", "hugo"),
+				huh.NewOption("Jekyll", "jekyll"),
+				huh.NewOption("Brunch", "brunch"),
+				huh.NewOption("Middleman", "middleman"),
+				huh.NewOption("Zola", "zola"),
+				huh.NewOption("Hydrogen", "hydrogen"),
+				huh.NewOption("Vite", "vite"),
+				huh.NewOption("VitePress", "vitepress"),
+				huh.NewOption("VuePress", "vuepress"),
+				huh.NewOption("Parcel", "parcel"),
+				huh.NewOption("FastHTML", "fasthtml"),
+				huh.NewOption("Sanity v3", "sanity-v3"),
+				huh.NewOption("Sanity", "sanity"),
+				huh.NewOption("Storybook", "storybook"),
+			),
 	)
-
 	telegramInput := huh.NewGroup(
 		huh.NewInput().
 			Key("telegramToken").
