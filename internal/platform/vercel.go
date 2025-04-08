@@ -72,6 +72,7 @@ func CreateVercelProject(config models.ProjectConfig, platformData models.Platfo
 			if errMsg, ok := errorResponse["error"].(map[string]interface{})["message"]; ok {
 				return fmt.Errorf("failed to create project, status code: %d, message: %v", resp.StatusCode, errMsg)
 			}
+
 		}
 		return fmt.Errorf("failed to create project, status code: %d", resp.StatusCode)
 	}
