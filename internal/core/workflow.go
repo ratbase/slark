@@ -61,10 +61,10 @@ func generateVercelWorkflow(config models.ProjectConfig, platformData models.Pla
 	// Create workflow content
 	// Marked as _ to avoid unused variable warning while keeping the code for reference
 	template := fmt.Sprintf(`
-name: %s - GitHub Actions Vercel Deployment - branch %s
+name: %s - branch %s - GitHub Actions Vercel Deployment
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_IMURA_LANDING }}
+  VERCEL_PROJECT_ID: ${{ secrets["VERCEL_" + upper(replace(config.Name, "-", "_")) + "_" + upper(config.DeployBranch)] }}
 on:
   push:
     branches:
@@ -145,7 +145,7 @@ jobs:
 func generateCloudflareWorkflow(config models.ProjectConfig, platformData models.PlatformData) ([]string, error) {
 	// Validate Cloudflare-specific requirements
 	if platformData.ApiKey == "" {
-		return nil, fmt.Errorf("Cloudflare API key is required")
+		return nil, fmt.Errorf("cloudflare API key is required")
 	}
 
 	// Create workflow content
