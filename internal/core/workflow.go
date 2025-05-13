@@ -2,7 +2,9 @@ package core
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 
 	"slark/internal/models"
 	"slark/internal/platform"
@@ -19,6 +21,7 @@ func GenerateWorkflows(config models.ProjectConfig, platformData models.Platform
 	case "vercel":
 		files, err := generateVercelWorkflow(config, platformData)
 		if err != nil {
+			slog.Error("error generating Vercel workflow", "error", err)
 			return nil, err
 		}
 		generatedFiles = append(generatedFiles, files...)
@@ -26,11 +29,13 @@ func GenerateWorkflows(config models.ProjectConfig, platformData models.Platform
 	case "cloudflare":
 		files, err := generateCloudflareWorkflow(config, platformData)
 		if err != nil {
+			slog.Error("error generating Cloudflare workflow", "error", err)
 			return nil, err
 		}
 		generatedFiles = append(generatedFiles, files...)
 
 	default:
+		slog.Error("unsupported platform", "platform", config.Platform)
 		return nil, fmt.Errorf("unsupported platform: %s", config.Platform)
 	}
 
@@ -38,6 +43,7 @@ func GenerateWorkflows(config models.ProjectConfig, platformData models.Platform
 	if platformData.BotToken != "" && platformData.ChatId != "" {
 		files, err := generateNotificationWorkflow()
 		if err != nil {
+			slog.Error("error generating notification workflow", "error", err)
 			return nil, err
 		}
 		generatedFiles = append(generatedFiles, files...)
@@ -53,24 +59,23 @@ func generateVercelWorkflow(config models.ProjectConfig, platformData models.Pla
 		return nil, fmt.Errorf("Vercel API key is required")
 	}
 
-	err := platform.CreateVercelProject(config, platformData)
+	_, err := platform.CreateVercelProject(config, platformData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Vercel project: %w", err)
 	}
 
-	// Create workflow content
-	// Marked as _ to avoid unused variable warning while keeping the code for reference
+	projectIdName := "VERCEL_" + strings.ToUpper(strings.ReplaceAll(config.Name, "-", "_")) + "_" + strings.ToUpper(config.DeployBranch)
 	template := fmt.Sprintf(`
 name: %s - branch %s - GitHub Actions Vercel Deployment
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets["VERCEL_" + upper(replace(config.Name, "-", "_")) + "_" + upper(config.DeployBranch)] }}
+  VERCEL_PROJECT_ID: ${{ secrets.%s }}
 on:
   push:
     branches:
       - %s
     paths:
-      - %s/**
+      - %s**
       - .github/workflows/%s.%s.yml
 jobs:
   Deploy-Production:
@@ -83,7 +88,6 @@ jobs:
       - name: Install Vercel CLI
         run: | 
           npm install --global vercel@canary
-          # npm install --global yarn
           npm install -g pnpm
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
@@ -106,7 +110,7 @@ jobs:
           fi
     outputs:
       deploy_result: ${{ steps.deploy-task-result.outputs.deploy_result }}
-    `, config.Name, config.DeployBranch, config.DeployBranch, config.BuildFolder, config.Name, config.DeployBranch)
+    `, config.Name, config.DeployBranch, projectIdName, config.DeployBranch, config.BuildFolder, config.Name, config.DeployBranch)
 
 	//if telegram token is set append this to above string
 	if platformData.BotToken != "" && platformData.ChatId != "" {

@@ -4,54 +4,48 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"net/http"
 	"slark/internal/models"
 )
 
-func CreateVercelProject(config models.ProjectConfig, platformData models.PlatformData) error {
-	// Base URL for Vercel API
+func CreateVercelProject(config models.ProjectConfig, platformData models.PlatformData) (string, error) {
 	baseURL := "https://api.vercel.com/v11/projects"
 
-	// Add team parameter to URL if provided
 	requestURL := baseURL
 	if platformData.TeamId != "" && platformData.TeamId != "team_xxxx" {
 		requestURL = fmt.Sprintf("%s?teamId=%s", baseURL, platformData.TeamId)
 	}
 
-	// Set outputDirectory based on build folder
-	// var outputDir interface{} = nil
-	// if config.BuildFolder != "./" {
-	// 	outputDir = config.BuildFolder
-	// }
-
-	// Updated project data according to v11 API format from provided example
-	projectData := map[string]interface{}{
+	projectData := map[string]any{
 		"name":                              config.Name,
 		"buildCommand":                      nil,
 		"commandForIgnoringBuildStep":       nil,
 		"devCommand":                        nil,
-		"environmentVariables":              []map[string]interface{}{},
+		"environmentVariables":              []map[string]any{},
 		"framework":                         platformData.Framework,
 		"installCommand":                    nil,
 		"outputDirectory":                   nil,
 		"publicSource":                      nil,
-		"rootDirectory":                     nil,
-		"skipGitConnectDuringLink":          true, // Set to true to skip GitHub connection
 		"enableAffectedProjectsDeployments": true,
-		"oidcTokenConfig": map[string]interface{}{
+		"oidcTokenConfig": map[string]any{
 			"enabled":    true,
 			"issuerMode": "global",
 		},
 	}
 
+	if strings.Compare(config.BuildFolder, "./") == 0{
+		projectData["rootDirectory"] = config.BuildFolder
+	}
+
 	jsonData, err := json.Marshal(projectData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal project data: %w", err)
+		return "", fmt.Errorf("failed to marshal project data: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+platformData.ApiKey)
@@ -60,24 +54,26 @@ func CreateVercelProject(config models.ProjectConfig, platformData models.Platfo
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
+		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
+	// body, err := io.ReadAll(resp.Body)
 
 	// Handle response status codes
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		// Parse error response
-		var errorResponse map[string]interface{}
+		var errorResponse map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err == nil {
-			if errMsg, ok := errorResponse["error"].(map[string]interface{})["message"]; ok {
-				return fmt.Errorf("failed to create project, status code: %d, message: %v", resp.StatusCode, errMsg)
+			if errMsg, ok := errorResponse["error"].(map[string]any)["message"]; ok {
+				return "", fmt.Errorf("failed to create project, status code: %d, message: %v", resp.StatusCode, errMsg)
 			}
 
 		}
-		return fmt.Errorf("failed to create project, status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("failed to create project, status code: %d", resp.StatusCode)
 	}
 
-	return nil
+	fmt.Printf("response body: %s\n", resp.Body)
+
+	return "", nil
 }
 
 func DeleteVercelProject(projectName, deployBranch, buildFolder string) error {

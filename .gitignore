@@ -5,11 +5,13 @@ slark
 *.o
 *.a
 *.so
+.github
 
 # Test binaries
 *.test
 *.out
 
+*log
 # IDEs and Editors
 .vscode/
 .idea/

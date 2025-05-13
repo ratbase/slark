@@ -19,10 +19,10 @@ type Model struct {
 }
 
 type PlatformData struct {
-	ApiKey   string
-	TeamId   string
-	BotToken string
-	ChatId   string
+	ApiKey    string
+	TeamId    string
+	BotToken  string
+	ChatId    string
 	Framework string // Framework option for Vercel projects
 }
 

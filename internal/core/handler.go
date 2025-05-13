@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"log/slog"
 	"slark/internal/models"
 	"strings"
 
@@ -130,6 +131,7 @@ func (m Model) View() string {
 		return m.ResultsView()
 	}
 }
+
 func (m Model) ProcessingView() string {
 	return fmt.Sprintf("\n  %s Setting up your project...\n\n  This won't take long.", m.Spinner.View())
 }
@@ -146,6 +148,7 @@ func (m Model) ResultsView() string {
 	if m.Err != nil {
 		errorMessage = m.Err.Error()
 	}
+	slog.Error("error processing project", "error", errorMessage)
 	return fmt.Sprintf("\n%s\n\n%s\n\n%s",
 		errorStyle.Render("✗ Error!"),
 		errorStyle.Render(errorMessage),
@@ -178,7 +181,7 @@ func InitialModel() Model {
 	buildFolderInput := huh.NewInput().
 		Key("buildFolder").
 		Title("Build Folder").
-		Placeholder("./")
+		Placeholder("")
 
 	platformSelect := huh.NewSelect[string]().
 		Key("platform").
@@ -255,13 +258,13 @@ func InitialModel() Model {
 	)
 	telegramInput := huh.NewGroup(
 		huh.NewInput().
-			Key("telegramToken").
-			Title("Your Telegram Bot Token").
-			EchoMode(huh.EchoModePassword),
-		huh.NewInput().
 			Key("telegramChatId").
 			Title("Your Telegram Chat ID").
 			Placeholder("-100"),
+		huh.NewInput().
+			Key("telegramToken").
+			Title("Your Telegram Bot Token").
+			EchoMode(huh.EchoModePassword),
 	)
 	form := huh.NewForm(
 		huh.NewGroup(
